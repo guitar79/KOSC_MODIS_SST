@@ -68,16 +68,21 @@ sst[sst < 0] = np.nan
 #####
 # Read geolocation dataset.
 lat = hdf.select('latitude')
+print(lat.attributes())
 latitude = lat[:,:]
+latitude1 = lat.get()
+print(latitude == latitude1)
+
 lon = hdf.select('longitude')
 longitude = lon[:,:]
+print(lon.attributes())
 
 m = Basemap(projection='cyl', resolution='l', llcrnrlat=10, urcrnrlat = 60, llcrnrlon=100, urcrnrlon = 160)
 m.drawcoastlines(linewidth=0.5)
 m.drawparallels(np.arange(-90, 90., 10.), labels=[1, 0, 0, 0])
 m.drawmeridians(np.arange(-180., 180., 15.), labels=[0, 0, 0, 1])
 x, y = m(longitude, latitude)
-m.pcolormesh(x, y, sst, vmin=0,vmax=2)
+m.pcolormesh(x, y, sst, vmin=0,vmax=20)
 plt.title('MODIS AOD')
 
 #plt.colorbar()
