@@ -1,32 +1,25 @@
-''' created by Kevin 
-  # 2018.07.22 
- ubuntu 16.04, Anaconda 3
- conda install basemap
- conda install -c conda-forge pyhdf
-'''
+# -*- coding: utf-8 -*-
+"""
+Spyder Editor
 
-#import os
-import matplotlib.pyplot as plt
-from mpl_toolkits.basemap import Basemap
+This is a temporary script file.
+
+created by Kevin 
+# 2018.07.22 
+ubuntu 16.04, Anaconda 3
+conda install basemap
+conda install -c conda-forge pyhdf
+"""
+
 import numpy as np
-#import pyhdf
-from datetime import datetime
-import time
 from pyhdf.SD import SD, SDC
 
-#julianday = '%d%03d' % (datetime.now().timetuple().tm_year, datetime.now().timetuple().tm_yday)
+base_dr = '../L2_SST_MODIS/hdf/'
+filename = 'MYDOCT.2018.1228.0443.aqua-1.hdf'
 
-# Open file.
-#data = np.genfromtxt(FILE_NAME, delimiter="\t", skip_header=1, filling_values=-99) 
-#FILE_NAME = '/media/guitar79/6T1/KOSC/L2_SST_NOAA/2011/2011.0901.0041.noaa-16.sst.asc'
-dir_name = 'L3_SST_AQUA/2011A/'
-f_name = 'MYDOCT.2011.0901.0413.aqua-1.hdf'
-
-hdf = SD(dir_name+f_name, SDC.READ)
+hdf = SD("{}{}".format(base_dr, filename), SDC.READ)
 
 print (hdf.datasets())
-
-DATAFIELD_NAME = 'sst'
 
 '''
 {
@@ -56,7 +49,8 @@ DATAFIELD_NAME = 'sst'
 }
 '''
 
-# 
+DATAFIELD_NAME = 'sst'
+
 sst_raw = hdf.select(DATAFIELD_NAME)
 sst_attri = sst_raw.attributes()
 sst_slope = sst_attri['slope']
@@ -77,6 +71,10 @@ lon = hdf.select('longitude')
 longitude = lon[:,:]
 print(lon.attributes())
 
+import matplotlib.pyplot as plt
+from mpl_toolkits.basemap import Basemap
+
+
 m = Basemap(projection='cyl', resolution='l', llcrnrlat=10, urcrnrlat = 60, llcrnrlon=100, urcrnrlon = 160)
 m.drawcoastlines(linewidth=0.5)
 m.drawparallels(np.arange(-90, 90., 10.), labels=[1, 0, 0, 0])
@@ -89,5 +87,4 @@ plt.title('MODIS AOD')
 plt.colorbar(cmap='rainbow', extend='max')
 
 #plt.savefig('current{}.pdf'.format(time), bbox_inches='tight', dpi = 300)
-plt.savefig(f_name+'.png', bbox_inches='tight', dpi = 300)
-
+#plt.savefig(f_name+'.png', bbox_inches='tight', dpi = 300)
