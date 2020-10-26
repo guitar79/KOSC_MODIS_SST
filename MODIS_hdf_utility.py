@@ -121,8 +121,64 @@ def make_grid_array(Llon, Rlon, Slat, Nlat, resolution) :
         data_array.append(data_line)
     lat_array = np.array(lat_array)
     lon_array = np.array(lon_array)
-    return lat_array, lon_array, data_array
+    mean_array = data_array
+    cnt_array = data_array
+    return lat_array, lon_array, data_array, mean_array, cnt_array
 
+def read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME):
+    ##########################################################
+    #
+    #
+    import numpy as np
+    from pyhdf.SD import SD, SDC
+    hdf = SD(fullname, SDC.READ)
+    # Read AOD dataset.
+    if DATAFIELD_NAME.upper() in hdf.datasets() :
+        DATAFIELD_NAME = DATAFIELD_NAME.upper()
+    
+    if DATAFIELD_NAME in hdf.datasets() :
+        hdf_raw = hdf.select(DATAFIELD_NAME)
+        hdf_data = hdf_raw[:,:]
+        print("found data set of {}: {}".format(DATAFIELD_NAME, hdf_data))
+    else : 
+        print("There is no data set of {}: {}".format(DATAFIELD_NAME, hdf_data))
+        
+    if 'scale_factor' in hdf_raw.attributes() and 'add_offset' in hdf_raw.attributes() :
+        scale_factor = hdf_raw.attributes()['scale_factor']
+        offset = hdf_raw.attributes()['add_offset']
+
+    elif 'slope' in hdf_raw.attributes() and 'intercept' in hdf_raw.attributes() :
+        scale_factor = hdf_raw.attributes()['slope']
+        offset = hdf_raw.attributes()['intercept']
+    
+    hdf_value = hdf_data * scale_factor + offset
+    hdf_value[hdf_value < 0] = np.nan
+    hdf_value = np.asarray(hdf_value)
+
+    # Read geolocation dataset.
+    if 'Latitude' in hdf.datasets() and 'Longitude'  in hdf.datasets():
+        lat = hdf.select('Latitude')
+        latitude = lat[:,:]
+        lon = hdf.select('Longitude')
+        longitude = lon[:,:]
+        
+    elif 'Latitude'.lower() in hdf.datasets() and 'Longitude'.lower()  in hdf.datasets():
+        lat = hdf.select('Latitude'.lower())
+        latitude = lat[:,:]
+        lon = hdf.select('Longitude'.lower())
+        longitude = lon[:,:]
+    
+    if 'cntl_pt_cols' in hdf.datasets() and 'cntl_pt_rows' in hdf.datasets():
+        cntl_pt_cols = hdf.select('cntl_pt_cols')
+        cntl_pt_cols = cntl_pt_cols[:]
+        cntl_pt_rows = hdf.select('cntl_pt_rows')
+        cntl_pt_rows = cntl_pt_rows[:]
+    else :
+        cntl_pt_cols, cntl_pt_rows =  np.arange(0), np.arange(0)
+    
+    return latitude, longitude, hdf_value, cntl_pt_cols, cntl_pt_rows
+                    
+                    
 
 def read_MODIS_hdf_and_make_statistics_array(dir_name, DATAFIELD_NAME, proc_date, 
                              resolution, Llon, Rlon, Slat, Nlat):

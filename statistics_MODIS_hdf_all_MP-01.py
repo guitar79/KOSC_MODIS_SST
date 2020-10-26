@@ -15,6 +15,8 @@ runfile('/mnt/14TB1/RS-data/KOSC/KOSC_MODIS_SST_Python/statistics_MODIS_hdf_all_
 
 runfile('/mnt/4TB1/RS-data/KOSC_MODIS_SST_Python/statistics_MODIS_hdf_all_MP-01.py', 'daily', wdir='/mnt/4TB1/RS-data/KOSC_MODIS_SST_Python')
 
+runfile('./statistics_MODIS_hdf_all_MP-01.py', 'daily', wdir='./KOSC_MODIS_SST_Python/')
+
 
 '''
 
@@ -83,12 +85,12 @@ class Multiprocessor():
             p.terminate()
         return rets
 
-DATAFIELD_NAME = "SST"
+DATAFIELD_NAME = "sst"
 #Set lon, lat, resolution
-Llon, Rlon = 90, 150
-Slat, Nlat = 10, 60
+Llon, Rlon = 115, 145
+Slat, Nlat = 20, 50
 resolution = 0.025
-base_dir_name = '../L2_SST_MODIS/'
+base_dir_name = '../MODIS_L2_SST/'
 save_dir_name = "../{0}_L3/{0}_{1}_{2}_{3}_{4}_{5}_{6}/".format(DATAFIELD_NAME, str(Llon), str(Rlon),
                                                                 str(Slat), str(Nlat), str(resolution), L3_perid)
 
@@ -102,10 +104,11 @@ else :
 
 myMP = Multiprocessor()
 
-years = range(2017, 2020)
+years = range(2011, 2020)
 
 proc_dates = []
 
+#make processing period tuple
 for year in years:
     dir_name = base_dir_name + str(year) + '/'
 
@@ -164,95 +167,175 @@ for batch in range(num_batches):
 
         df_proc = df[(df['fullname_dt'] >= proc_date[0]) & (df['fullname_dt'] < proc_date[1])]
         
-        if len(df_proc) != 0 :
-            
-            print("df_proc: {}".format(df_proc))
-        
-            processing_log = "#This file is created using Python : https://github.com/guitar79/KOSC_MODIS_SST"
-            processing_log += "#L3_perid = {}, start date = {}, end date = {}"\
-                .format(L3_perid, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'))
-    
-            processing_log += "#Llon = {}, Rlon = {}, Slat = {}, Nlat = {}, resolution = {}"\
-                .format(str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution))
-            
-            # make lat_array, lon_array, data_array
-            print("{0}-{1} Start making grid arrays...\n".format(proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
-            lat_array, lon_array, data_array = MODIS_hdf_utility.make_grid_array(Llon, Rlon, Slat, Nlat, resolution)
-            print('Grid arrays are created...........\n')
-        
-                        
-                #proc_start_date = proc_date[0].strftime('%Y%m%d')
-                #proc_end_date = proc_date[1].strftime('%Y%m%d')
-                #thread_number = proc_date[2]
-        
-            total_data_cnt = 0
-            file_no = 0
-            processing_log += '#processing file list\n'
-            processing_log += '#No, data_count, filename \n'
-
-            for fullname in df_proc["fullname"] : 
-            
-                result_array = data_array
-    
-                try:
-                    print('reading file {0}\n'.format(fullname))
-                    from pyhdf.SD import SD, SDC
-                    hdf = SD(fullname, SDC.READ)
-                    # Read AOD dataset.
-                    hdf_raw = hdf.select(DATAFIELD_NAME)
-                    hdf_data = hdf_raw[:,:]
-                    scale_factor = hdf_raw.attributes()['scale_factor']
-                    offset = hdf_raw.attributes()['add_offset']
-                    hdf_value = hdf_data * scale_factor + offset
-                    hdf_value[hdf_value < 0] = np.nan
-                    hdf_value = np.asarray(hdf_value)
-    
-                    # Read geolocation dataset.
-                    lat = hdf.select('Latitude')
-                    latitude = lat[:,:]
-                    lon = hdf.select('Longitude')
-                    longitude = lon[:,:]
-                    print()
-                    print("latitude: {}".format(latitude))
-                    print("longitude: {}".format(longitude))
-                    print("hdf_value: {}".format(hdf_value))
-                    print("np.shape(latitude): {}".format(np.shape(latitude)))
-                    print("np.shape(longitude): {}".format(np.shape(longitude)))
-                    print("np.shape(hdf_value): {}".format(np.shape(hdf_value)))
-                    
-                except Exception as err :
-                    print("Something got wrecked : {}".format(err))    
-        else :
-            print("There is no data in {0} - {1} ...\n".format(proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
-            
-            
-            '''
-            #result_array, processing_log = myMP.run(MODIS_hdf_utility.read_MODIS_hdf_and_make_statistics_array, 
-            #        "base_dir_name, DATAFIELD_NAME, proc_date, resolution, Llon, Rlon, Slat, Nlat")
-            
-            #result_array, processing_log = MODIS_hdf_utility.read_MODIS_hdf_and_make_statistics_array(\
-             #         base_dir_name, DATAFIELD_NAME, proc_date, \
-              #      resolution, Llon, Rlon, Slat, Nlat)
-            
+        if os.path.exists('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_result.npy'\
+                .format(save_dir_name, DATAFIELD_NAME, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
+                str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)))\
+            and os.path.exists('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_info.txt'\
+                .format(save_dir_name, DATAFIELD_NAME, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
+                str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution))) :
                 
-            print("result_array: {}".format(result_array))
-            print("prodessing_log: {}".format(processing_log))
-            
-            np.save('{0}AOD_3K_{1}_{2}_{3}_{4}_{5}_{6}_{7}_result.npy'\
-                .format(save_dir_name, proc_date[0], proc_date[1], 
-                str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), result_array)
+            print(('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8} files are exist...'\
+                .format(save_dir_name, DATAFIELD_NAME, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
+                str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution))))
         
-            with open('{0}AOD_3K_{1}_{2}_{3}_{4}_{5}_{6}_{7}_info.txt'\
-                  .format(save_dir_name, proc_date[0], proc_date[1], \
-                  str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), 'w') as f:
-                f.write(processing_log)
-            print('#'*60)
-            MODIS_hdf_utility.write_log(log_file, '{0}AOD_3K_{1}_{2}_{3}_{4}_{5}_{6}_{7} files are is created.'\
-              .format(save_dir_name, proc_date[0], proc_date[1], \
-                  str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)))
+        else : 
+    
+            if len(df_proc) != 0 :
+                
+                print("df_proc: {}".format(df_proc))
             
-        print("Batch " + str(batch))
-        myMP.wait()
-        #values.append(myMP.wait())
-        print("OK batch" + str(batch))
-        '''
+                processing_log = "#This file is created using Python : https://github.com/guitar79/KOSC_MODIS_SST\n"
+                processing_log += "#L3_perid = {}, start date = {}, end date = {}\n"\
+                    .format(L3_perid, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'))
+        
+                processing_log += "#Llon = {}, Rlon = {}, Slat = {}, Nlat = {}, resolution = {}\n"\
+                    .format(str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution))
+                
+                # make lat_array, lon_array, data_array
+                print("{0}-{1} Start making grid arrays...\n".\
+                      format(proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
+                lat_array, lon_array, data_array, mean_array, cnt_array\
+                    = MODIS_hdf_utility.make_grid_array(Llon, Rlon, Slat, Nlat, resolution)
+                
+                print('Grid arrays are created...........\n')
+            
+                    #proc_start_date = proc_date[0].strftime('%Y%m%d')
+                    #proc_end_date = proc_date[1].strftime('%Y%m%d')
+                    #thread_number = proc_date[2]
+
+                total_data_cnt = 0
+                file_no = 0
+                processing_log += '#processing file list\n'
+                processing_log += '#file No, data_count, filename\n'
+
+                
+                for fullname in df_proc["fullname"] : 
+                    result_array = data_array
+                    try:
+                        print('reading hdf file {0}\n'.format(fullname))
+                        latitude, longitude, hdf_value, cntl_pt_cols, cntl_pt_rows \
+                            = MODIS_hdf_utility.read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME)
+
+                        print("latitude: {}".format(latitude))
+                        print("longitude: {}".format(longitude))
+                        print("hdf_value: {}".format(hdf_value))
+                        print("np.shape(latitude): {}".format(np.shape(latitude)))
+                        
+                        print("np.shape(longitude): {}".format(np.shape(longitude)))
+                        print("np.shape(hdf_value): {}".format(np.shape(hdf_value)))
+                        print("len(cntl_pt_cols): {}".format(len(cntl_pt_cols)))
+                        print("len(cntl_pt_rows): {}".format(len(cntl_pt_rows)))
+                        
+                    except Exception as err :
+                        print("Something got wrecked : {}".format(err))    
+                        
+                    if np.shape(latitude) == np.shape(longitude) :
+                        if np.shape(latitude)[0] != np.shape(hdf_value)[0] :
+                            print("np.shape(latitude)[0] != np.shape(hdf_value)[0] is not same...")
+                            row = 0
+                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(latitude[0])) :
+                                for i in range(len(cntl_pt_rows)-1) :
+                                    latitude_value = np.linspace(latitude[row,i], latitude[row,i+1], cntl_pt_rows[i])
+                                    for j in range(i) :
+                                        latitude_new[row, row+j] = latitude_value[j]                        
+                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
+                                                          
+                        elif np.shape(latitude)[1] != np.shape(hdf_value)[1] :
+                            print("np.shape(latitude)[1] != np.shape(hdf_value)[1] is true...")
+                            col = 0
+                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(latitude[1])) :
+                                for i in range(len(cntl_pt_cols)-1) :
+                                    latitude_value = np.linspace(latitude[row,i], latitude[row,i+1], cntl_pt_cols[i])
+                                    for j in range(i) :
+                                        latitude_new[row, col+j] = latitude_value[j]                        
+                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
+                            
+                        latitude = latitude_new
+                        print("np.shape(latitude): {}".format(np.shape(latitude)))
+                        
+                        if np.shape(longitude)[0] != np.shape(hdf_value)[0] :
+                            print("np.shape(longitude)[0] != np.shape(hdf_value)[0] is true...")
+                            row = 0
+                            longitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(longitude[0])) :
+                                for i in range(len(cntl_pt_rows)-1) :
+                                    longitude_value = np.linspace(longitude[row,i], longitude[row,i+1], cntl_pt_rows[i])
+                                    for j in range(i) :
+                                        longitude_new[row, row+j] = longitude_value[j]                        
+                            print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
+                                                    
+                        elif np.shape(longitude)[1] != np.shape(hdf_value)[1] :
+                            print("np.shape(longitude)[1] != np.shape(hdf_value)[1] is true...")
+                            col = 0
+                            longitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(longitude[1])) :
+                                for i in range(len(cntl_pt_cols)-1) :
+                                    longitude_value = np.linspace(longitude[row,i], longitude[row,i+1], cntl_pt_cols[i])
+                                    for j in range(i) :
+                                        longitude_new[row, col+j] = longitude_value[j]                        
+                            print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
+                            
+                        longitude = longitude_new
+                        print("np.shape(longitude): {}".format(np.shape(longitude)))
+                                            
+                    lon_cood = np.array(((longitude-Llon)/resolution*100//100), dtype=np.uint16)
+                    lat_cood = np.array(((Nlat-latitude)/resolution*100//100), dtype=np.uint16)
+                    data_cnt = 0
+                    for i in range(np.shape(lon_cood)[0]) :
+                        for j in range(np.shape(lon_cood)[1]) :
+                            if int(lon_cood[i][j]) < np.shape(lon_array)[0] \
+                                and int(lat_cood[i][j]) < np.shape(lon_array)[1] \
+                                and not np.isnan(hdf_value[i][j]) :
+                                data_cnt += 1 
+                                result_array[int(lon_cood[i][j])][int(lat_cood[i][j])].append(hdf_value[i][j])
+                                print("{} data added...".format(data_cnt ))
+                    file_no += 1
+                    total_data_cnt += data_cnt
+                    processing_log += str(file_no) + ',' + str(data_cnt) +',' + str(fullname) + '\n'
+                    
+                processing_log += '#total data number =' + str(total_data_cnt) + '\n'
+                
+                print("result_array: {}".format(result_array))
+                print("prodessing_log: {}".format(processing_log))
+                
+                print("{} \n {} - {}, 'Calculating mean value at each pixel is being started...\n"\
+                      .format('='*80, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
+                
+                for i in range(np.shape(result_array)[0]):
+                    for j in range(np.shape(result_array)[1]):
+                        print("result_array[{}][{}]: {}".format(i, j, result_array[i][j]))
+                        #cnt2 += 1 #for debug
+                        if len(result_array[i][j]) > 0: 
+                            mean_array[i][j] = np.mean(result_array[i][j])
+                            cnt_array[i][j] = len(result_array[i][j])
+                        else : 
+                            mean_array[i][j] = np.nan
+                            cnt_array[i][j] = 0
+                        
+                mean_array = np.array(mean_array)
+                cnt_array = np.array(cnt_array)
+                save_array = np.array([lon_array, lat_array, mean_array, cnt_array])
+                                            
+                np.save('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_result.npy'\
+                    .format(save_dir_name, DATAFIELD_NAME, 
+                    proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
+                    str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), save_array)
+                
+                with open('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_info.txt'\
+                      .format(save_dir_name, DATAFIELD_NAME, \
+                      proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), \
+                      str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), 'w') as f:
+                    f.write(processing_log)
+                print('#'*60)
+                MODIS_hdf_utility.write_log(log_file, \
+                    '{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8} files are is created.'\
+                    .format(save_dir_name, DATAFIELD_NAME, \
+                    proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), \
+                    str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)))
+
+            else :
+                print("There is no data in {0} - {1} ...\n"\
+                      .format(proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
+            
