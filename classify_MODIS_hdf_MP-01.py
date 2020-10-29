@@ -11,12 +11,13 @@ created by Kevin
 NameError: name 'SD' is not defined
 conda install -c conda-forge pyhdf
 
-runfile('/mnt/14TB1/RS-data/KOSC/KOSC_MODIS_SST_Python/statistics_MODIS_hdf_all_MP-01.py', 'daily', wdir='/mnt/14TB1/RS-data/KOSC/KOSC_MODIS_SST_Python')
+runfile('./classify_MODIS_hdf_MP-01.py', 'daily', wdir='./KOSC_MODIS_SST_Python/')
 
-runfile('/mnt/4TB1/RS-data/KOSC_MODIS_SST_Python/statistics_MODIS_hdf_all_MP-01.py', 'daily', wdir='/mnt/4TB1/RS-data/KOSC_MODIS_SST_Python')
 
-runfile('./statistics_MODIS_hdf_all_MP-01.py', 'daily', wdir='./KOSC_MODIS_SST_Python/')
+len(npy_data[795,183])
+np.mean(npy_data[795,183])
 
+hdf_data = np.load(f_name1, allow_pickle=True)
 
 '''
 
@@ -87,9 +88,9 @@ class Multiprocessor():
 
 DATAFIELD_NAME = "sst4"
 #Set lon, lat, resolution
-Llon, Rlon = 115, 145
-Slat, Nlat = 20, 50
-resolution = 0.05
+Llon, Rlon = 110, 150
+Slat, Nlat = 10, 60
+resolution = 0.01
 base_dir_name = '../MODIS_L2_SST/'
 save_dir_name = "../{0}_L3/{0}_{1}_{2}_{3}_{4}_{5}_{6}/".format(DATAFIELD_NAME, str(Llon), str(Rlon),
                                                                 str(Slat), str(Nlat), str(resolution), L3_perid)
@@ -104,7 +105,7 @@ else :
 
 myMP = Multiprocessor()
 
-years = range(2013, 2014)
+years = range(2011, 2020)
 
 proc_dates = []
 
@@ -167,7 +168,7 @@ for batch in range(num_batches):
 
         df_proc = df[(df['fullname_dt'] >= proc_date[0]) & (df['fullname_dt'] < proc_date[1])]
         
-        if os.path.exists('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_result.npy'\
+        if os.path.exists('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_alldata.npy'\
                 .format(save_dir_name, DATAFIELD_NAME, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
                 str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)))\
             and os.path.exists('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_info.txt'\
@@ -208,12 +209,18 @@ for batch in range(num_batches):
                 processing_log += '#file No, data_count, filename\n'
 
                 for fullname in df_proc["fullname"] : 
+                    fullname_el = fullname.split("/")
                     array_alldata = array_data.copy()
                     try:
                         print('reading hdf file {0}\n'.format(fullname))
                         latitude, longitude, hdf_value, cntl_pt_cols, cntl_pt_rows \
                             = MODIS_hdf_utility.read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME)
-
+                            
+                        #Erase min value
+                        hdf_value[hdf_value == hdf_value.min()] = np.nan
+                        hdf_value = np.asarray(hdf_value)
+                        #hdf_value[hdf_value < 0] = np.nan
+                        
                         print("latitude: {}".format(latitude))
                         print("longitude: {}".format(longitude))
                         print("hdf_value: {}".format(hdf_value))
@@ -226,39 +233,8 @@ for batch in range(num_batches):
                         
                     except Exception as err :
                         print("Something got wrecked : {}".format(err))    
-                        
-                    if np.shape(latitude) == np.shape(longitude) :
-                        if np.shape(latitude)[0] != np.shape(hdf_value)[0] :
-                            print("np.shape(latitude)[0] != np.shape(hdf_value)[0] is not same...")
-                            row = 0
-                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
-                            for row in range(len(latitude[0])) :
-                                for i in range(len(cntl_pt_rows)-1) :
-                                    latitude_value = np.linspace(latitude[row,i], latitude[row,i+1], cntl_pt_rows[i])
-                                    for j in range(i) :
-                                        latitude_new[row, row+j] = latitude_value[j]                        
-                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
-                                                          
-                        elif np.shape(latitude)[1] != np.shape(hdf_value)[1] :
-                            print("np.shape(latitude)[1] != np.shape(hdf_value)[1] is true...")
-                            col = 0
-                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
-                            for row in range(len(latitude[1])) :
-                                for i in range(len(cntl_pt_cols)-1) :
-                                    latitude_value = np.linspace(latitude[row,i], \
-                                                                 latitude[row,i+1], \
-                                                                 cntl_pt_cols[i+1]-cntl_pt_cols[i]+1)
-                                    #print("latitude_value {}: {}".format(i, latitude_value))
-                                    #print("{0}, cntl_pt_cols[{1}]-cntl_pt_cols[{0}] : {2})"\
-                                    #      .format(i, i+1, cntl_pt_cols[i+1]-cntl_pt_cols[i]))
-                                    for j in range(len(latitude_value)-1) :
-                                        latitude_new[row, cntl_pt_cols[i]-1+j] = latitude_value[j] 
-                                    latitude_new[row, np.shape(latitude_new)[1]-1] = latitude[row, np.shape(latitude)[1]-1]
-                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
-                            
-                        latitude = latitude_new.copy()
-                        print("np.shape(latitude): {}".format(np.shape(latitude)))
-                        
+
+                    if np.shape(latitude) == np.shape(longitude) :                    
                         if np.shape(longitude)[0] != np.shape(hdf_value)[0] :
                             print("np.shape(longitude)[0] != np.shape(hdf_value)[0] is true...")
                             row = 0
@@ -288,36 +264,78 @@ for batch in range(num_batches):
                             print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
                             
                         longitude = longitude_new.copy()
+                        longitude = np.asarray(longitude)
+                        print("type(longitude): {}".format(type(longitude)))
                         print("np.shape(longitude): {}".format(np.shape(longitude)))
-                                            
+                        
+                    
+                        if np.shape(latitude)[0] != np.shape(hdf_value)[0] :
+                            print("np.shape(latitude)[0] != np.shape(hdf_value)[0] is not same...")
+                            row = 0
+                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(latitude[0])) :
+                                for i in range(len(cntl_pt_rows)-1) :
+                                    latitude_value = np.linspace(latitude[row,i], latitude[row,i+1], cntl_pt_rows[i])
+                                    for j in range(i) :
+                                        latitude_new[row, row+j] = latitude_value[j]                        
+                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
+                                                          
+                        elif np.shape(latitude)[1] != np.shape(hdf_value)[1] :
+                            print("np.shape(latitude)[1] != np.shape(hdf_value)[1] is true...")
+                            col = 0
+                            latitude_new = np.empty(shape=(np.shape(hdf_value)))
+                            for row in range(len(latitude[1])) :
+                                for i in range(len(cntl_pt_cols)-1) :
+                                    latitude_value = np.linspace(latitude[row,i], \
+                                                                 latitude[row,i+1], \
+                                                                 cntl_pt_cols[i+1]-cntl_pt_cols[i]+1)
+                                    #print("latitude_value {}: {}".format(i, latitude_value))
+                                    #print("{0}, cntl_pt_cols[{1}]-cntl_pt_cols[{0}] : {2})"\
+                                    #      .format(i, i+1, cntl_pt_cols[i+1]-cntl_pt_cols[i]))
+                                    for j in range(len(latitude_value)-1) :
+                                        latitude_new[row, cntl_pt_cols[i]-1+j] = latitude_value[j] 
+                                    latitude_new[row, np.shape(latitude_new)[1]-1] = latitude[row, np.shape(latitude)[1]-1]
+                            print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
+                            
+                        latitude = latitude_new.copy()
+                        latitude = np.asarray(latitude)
+                        print("type(latitude): {}".format(type(latitude)))
+                        print("np.shape(latitude): {}".format(np.shape(latitude)))
+                        
+                                           
                     if np.shape(latitude) == np.shape(hdf_value) \
                         and np.shape(longitude) == np.shape(hdf_value) :
                             
-                        longitude[longitude > Llon] = np.nan
-                        longitude[longitude < Rlon] = np.nan
+                        longitude[longitude < Llon] = np.nan
+                        longitude[longitude > Rlon] = np.nan
                         latitude[latitude > Nlat] = np.nan
                         latitude[latitude < Slat] = np.nan
                             
                         #lon_cood = np.array((((longitude-Llon)/resolution*100)//100), dtype=np.uint16)
                         #lat_cood = np.array((((Nlat-latitude)/resolution*100)//100), dtype=np.uint16)
                         
-                        lon_cood = np.array((((longitude-Llon)/resolution*100)//100))
-                        lat_cood = np.array((((Nlat-latitude)/resolution*100)//100))
+                        lon_cood = np.array(((longitude-Llon)/resolution*100)//100)
+                        lat_cood = np.array(((Nlat-latitude)/resolution*100)//100)
                         
+                        print("longitude: {}".format(longitude))
                         print("np.shape(lon_cood): {}".format(np.shape(lon_cood)))
-                        print("np.shape(lat_cood): {}".format(np.shape(lat_cood)))
                         print("lon_cood: {}".format(lon_cood))
+                        
+                        print("latitude: {}".format(latitude))
+                        print("np.shape(lat_cood): {}".format(np.shape(lat_cood)))
                         print("lat_cood: {}".format(lat_cood))
                         
                         data_cnt = 0
                         NaN_cnt = 0
                         for i in range(np.shape(lon_cood)[0]) :
                             for j in range(np.shape(lon_cood)[1]) :
-                                if not np.isnan(lon_cood[i][j]) \
-                                    and not np.isnan(lat_cood[i][j]) \
+                                if longitude[i,j] <= Rlon and longitude[i,j] >= Llon \
+                                    and latitude[i,j] <= Nlat and latitude[i,j] >= Slat \
                                     and not np.isnan(hdf_value[i][j]) :
                                     data_cnt += 1
-                                    array_alldata[int(lon_cood[i][j])][int(lat_cood[i][j])].append(hdf_value[i][j])
+                                    #array_alldata[int(lon_cood[i][j])][int(lat_cood[i][j])].append(hdf_value[i][j])
+                                    array_alldata[int(lon_cood[i][j])][int(lat_cood[i][j])].append((fullname_el[-1], hdf_value[i][j]))
+                                    
                                     #print("array_alldata[{}][{}].append({})"\
                                     #      .format(int(lon_cood[i][j]), int(lat_cood[i][j]), hdf_value[i][j]))
                                     print("{} data added...".format(data_cnt))
@@ -332,35 +350,11 @@ for batch in range(num_batches):
                 
                 print("array_alldata: {}".format(array_alldata))
                 #print("prodessing_log: {}".format(processing_log))
-                break
-                
-                print("{} \n {} - {}, 'Calculating mean value at each pixel is being started...\n"\
-                      .format('='*80, proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d')))
-                
-                array_mean = array_data.copy()
-                array_count = array_data.copy()
-                
-                for i in range(np.shape(array_alldata)[0]):
-                    for j in range(np.shape(array_alldata)[1]):
-                        print("array_alldata[{}][{}]: {}".format(i, j, array_alldata[i][j]))
-                        
-                        if len(array_alldata[i][j]) > 0: 
-                            array_mean[i][j] = array_mean[i][j].append(np.mean(array_alldata[i][j]))
-                        else : 
-                            array_mean[i][j] = array_mean[i][j].append(np.nan)
-                        array_count[i][j] = array_count[i][j].append(len(array_alldata[i][j]))
-                    
-                    print("array_alldata[{}][{}] {:.01f} % : {}".format(i, j, \
-                           i/np.shape(array_alldata)[0]*100, array_alldata[i][j]))
-                        
-                array_mean = np.array(array_mean)
-                array_count = np.array(array_count)
-                array_save = np.array([array_lon, array_lat, array_mean, array_count])
                                             
-                np.save('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_result.npy'\
+                np.save('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_alldata.npy'\
                     .format(save_dir_name, DATAFIELD_NAME, 
                     proc_date[0].strftime('%Y%m%d'), proc_date[1].strftime('%Y%m%d'), 
-                    str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), array_save)
+                    str(Llon), str(Rlon), str(Slat), str(Nlat), str(resolution)), array_alldata)
                 
                 with open('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_info.txt'\
                       .format(save_dir_name, DATAFIELD_NAME, \

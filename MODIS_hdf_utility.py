@@ -105,25 +105,47 @@ def make_grid_array(Llon, Rlon, Slat, Nlat, resolution) :
     
     ni = np.int((Rlon-Llon)/resolution+1.00)
     nj = np.int((Nlat-Slat)/resolution+1.00)
-    lon_array = []
-    lat_array = []
-    data_array = []
+    array_data = []
     for i in range(ni):
-        lon_line = []
-        lat_line = []
-        data_line = []
+        line_data = []
         for j in range(nj):
-            lon_line.append(Llon+resolution*i)
-            lat_line.append(Nlat-resolution*j)
-            data_line.append([])
-        lon_array.append(lon_line)
-        lat_array.append(lat_line)
-        data_array.append(data_line)
-    lat_array = np.array(lat_array)
-    lon_array = np.array(lon_array)
-    mean_array = data_array
-    cnt_array = data_array
-    return lat_array, lon_array, data_array, mean_array, cnt_array
+            line_data.append([])
+        array_data.append(line_data)
+    
+    return array_data
+
+
+def make_grid_array1(Llon, Rlon, Slat, Nlat, resolution) :
+    ############################################################
+    # Llon, Rlon = 90, 150
+    # Slat, Nlat = 10, 60
+    # resolution = 0.025
+    #
+    
+    import numpy as np
+    
+    ni = np.int((Rlon-Llon)/resolution+1.00)
+    nj = np.int((Nlat-Slat)/resolution+1.00)
+    array_lon = []
+    array_lat = []
+    array_data = []
+    for i in range(ni):
+        line_lon = []
+        line_lat = []
+        line_data = []
+        for j in range(nj):
+            line_lon.append(Llon+resolution*i)
+            line_lat.append(Nlat-resolution*j)
+            line_data.append([])
+        array_lon.append(line_lon)
+        array_lat.append(line_lat)
+        array_data.append(line_data)
+    array_lon = np.array(array_lon)
+    array_lat = np.array(array_lat)
+    
+    return array_lon, array_lat, array_data
+
+
 
 def read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME):
     ##########################################################
@@ -132,6 +154,7 @@ def read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME):
     import numpy as np
     from pyhdf.SD import SD, SDC
     hdf = SD(fullname, SDC.READ)
+    
     # Read AOD dataset.
     if DATAFIELD_NAME.upper() in hdf.datasets() :
         DATAFIELD_NAME = DATAFIELD_NAME.upper()
@@ -152,8 +175,7 @@ def read_MODIS_hdf_to_ndarray(fullname, DATAFIELD_NAME):
         offset = hdf_raw.attributes()['intercept']
     
     hdf_value = hdf_data * scale_factor + offset
-    hdf_value[hdf_value < 0] = np.nan
-    hdf_value = np.asarray(hdf_value)
+
 
     # Read geolocation dataset.
     if 'Latitude' in hdf.datasets() and 'Longitude'  in hdf.datasets():
@@ -208,22 +230,22 @@ def read_MODIS_hdf_and_make_statistics_array(dir_name, DATAFIELD_NAME, proc_date
     print("{0}-{1} Start making grid arrays...\n".format(proc_start_date, proc_end_date))
     ni = np.int((Rlon-Llon)/resolution+1.00)
     nj = np.int((Nlat-Slat)/resolution+1.00)
-    lon_array = []
-    lat_array = []
-    data_array = []
+    array_lon = []
+    array_lat = []
+    array_data = []
     for i in range(ni):
-        lon_line = []
-        lat_line = []
-        data_line = []
+        line_lon = []
+        line_lat = []
+        line_data = []
         for j in range(nj):
-            lon_line.append(Llon+resolution*i)
-            lat_line.append(Nlat-resolution*j)
-            data_line.append([])
-        lon_array.append(lon_line)
-        lat_array.append(lat_line)
-        data_array.append(data_line)
-    lat_array = np.array(lat_array)
-    lon_array = np.array(lon_array)
+            line_lon.append(Llon+resolution*i)
+            line_lat.append(Nlat-resolution*j)
+            line_data.append([])
+        array_lon.append(line_lon)
+        array_lat.append(line_lat)
+        array_data.append(line_data)
+    array_lat = np.array(array_lat)
+    array_lon = np.array(array_lon)
     print('Grid arrays are created...........\n')
 
     total_data_cnt = 0
@@ -235,7 +257,7 @@ def read_MODIS_hdf_and_make_statistics_array(dir_name, DATAFIELD_NAME, proc_date
     fullnames = sorted(glob(os.path.join(dir_name, '*.hdf')))
     if not fullnames  :
         for fullname in fullnames:
-            result_array = data_array
+            result_array = array_data
             file_date = fullname_to_datetime_for_MODIS_3K(fullname)
             #print('fileinfo', file_date)
     
@@ -272,8 +294,8 @@ def read_MODIS_hdf_and_make_statistics_array(dir_name, DATAFIELD_NAME, proc_date
                     data_cnt = 0
                     for i in range(np.shape(lon_cood)[0]) :
                         for j in range(np.shape(lon_cood)[1]) :
-                            if int(lon_cood[i][j]) < np.shape(lon_array)[0] \
-                                and int(lat_cood[i][j]) < np.shape(lon_array)[1] \
+                            if int(lon_cood[i][j]) < np.shape(array_lon)[0] \
+                                and int(lat_cood[i][j]) < np.shape(array_lon)[1] \
                                 and not np.isnan(hdf_value[i][j]) :
                                 data_cnt += 1 #for debug
                                 result_array[int(lon_cood[i][j])][int(lat_cood[i][j])].append(hdf_value[i][j])
@@ -341,22 +363,22 @@ def read_MODIS_SST_hdf_and_array_by_date(save_dir_name, dir_name, proc_date,
               .format(proc_start_date, proc_end_date))
         ni = np.int((Rlon-Llon)/resolution+1.00)
         nj = np.int((Nlat-Slat)/resolution+1.00)
-        lon_array = []
-        lat_array = []
-        data_array = []
+        array_lon = []
+        array_lat = []
+        array_data = []
         for i in range(ni):
-            lon_line = []
-            lat_line = []
-            data_line = []
+            line_lon = []
+            line_lat = []
+            line_data = []
             for j in range(nj):
-                lon_line.append(Llon+resolution*i)
-                lat_line.append(Nlat-resolution*j)
-                data_line.append([])
-            lon_array.append(lon_line)
-            lat_array.append(lat_line)
-            data_array.append(data_line)
-        lat_array = np.array(lat_array)
-        lon_array = np.array(lon_array)
+                line_lon.append(Llon+resolution*i)
+                line_lat.append(Nlat-resolution*j)
+                line_data.append([])
+            array_lon.append(line_lon)
+            array_lat.append(line_lat)
+            array_data.append(line_data)
+        array_lat = np.array(array_lat)
+        array_lon = np.array(array_lon)
         print('grid arrays are created...........\n')
 
         total_data_cnt = 0
@@ -367,7 +389,7 @@ def read_MODIS_SST_hdf_and_array_by_date(save_dir_name, dir_name, proc_date,
         result_array = np.zeros((1, 1, 1))
         for fullname in sorted(glob(os.path.join(dir_name, '*.hdf'))):
             
-            result_array = data_array
+            result_array = array_data
             file_date = fullname_to_datetime_for_MODIS_3K(fullname)
             #print('fileinfo', file_date)
 
@@ -407,8 +429,8 @@ def read_MODIS_SST_hdf_and_array_by_date(save_dir_name, dir_name, proc_date,
                     data_cnt = 0
                     for i in range(np.shape(lon_cood)[0]) :
                         for j in range(np.shape(lon_cood)[1]) :
-                            if int(lon_cood[i][j]) < np.shape(lon_array)[0] \
-                                and int(lat_cood[i][j]) < np.shape(lon_array)[1] \
+                            if int(lon_cood[i][j]) < np.shape(array_lon)[0] \
+                                and int(lat_cood[i][j]) < np.shape(array_lon)[1] \
                                 and not np.isnan(hdf_value[i][j]) :
                                 data_cnt += 1 #for debug
                                 result_array[int(lon_cood[i][j])][int(lat_cood[i][j])].append(hdf_value[i][j])
