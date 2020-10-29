@@ -11,7 +11,7 @@ created by Kevin
 NameError: name 'SD' is not defined
 conda install -c conda-forge pyhdf
 
-runfile('./classify_MODIS_hdf_MP-01.py', 'daily', wdir='./KOSC_MODIS_SST_Python/')
+runfile('./classify_MODIS_hdf_MP-01.py', 'daily 2011', wdir='./KOSC_MODIS_SST_Python/')
 
 
 len(npy_data[795,183])
@@ -29,11 +29,19 @@ import sys
 from sys import argv
 import MODIS_hdf_utility
 
-script, L3_perid = argv # Input L3_perid : 'weekly' 'monthly' 'daily'
-if L3_perid == 'daily' or L3_perid == 'weekly' or L3_perid == 'monthly' :
-    print(L3_perid, 'processing started')
+#script, L3_perid, yr = argv # Input L3_perid : 'weekly' 'monthly' 'daily'
+print("argv: {}".format(argv))
+if len(argv) < 3 :
+    print ("len(argv) < 2\nPlease input L3_perid and year \n ex) aaa.py daily 2016\n ex) aaa.py weekly 2016\n ex) aaa.py monthly 2016")
+    sys.exit()
+elif len(argv) > 3 :
+    print ("len(argv) > 2\nPlease input L3_perid and year \n ex) aaa.py daily 2016\n ex) aaa.py weekly 2016\n ex) aaa.py monthly 2016")
+    sys.exit()
+elif argv[1] == 'daily' or argv[1] == 'weekly' or argv[1] == 'monthly' :
+    L3_perid, yr = argv[1], int(argv[2])
+    print("{}, {} processing started...".format(argv[1], argv[2]))
 else :
-    print('input daily weekly monthly')
+    print("Please input L3_perid and year \n ex) aaa.py daily 2016\n ex) aaa.py weekly 2016\n ex) aaa.py monthly 2016")
     sys.exit()
 
 add_log = True
@@ -41,51 +49,6 @@ if add_log == True :
     log_file = 'MODIS_SST_python.log'
     err_log_file = 'MODIS_SST_python.log'
     
-#for checking time
-cht_start_time = datetime.now()
-def print_working_time():
-    working_time = (datetime.now() - cht_start_time) #total days for downloading
-    return print('working time ::: %s' % (working_time))
-
-# Multiprocessing
-
-import multiprocessing as proc
-
-myQueue = proc.Manager().Queue()
-
-# I love the OOP way.(Custom class for multiprocessing)
-class Multiprocessor():
-    def __init__(self):
-        self.processes = []
-        self.queue = proc.Queue()
-
-    @staticmethod
-    def _wrapper(func, args, kwargs):
-        ret = func(*args, **kwargs)
-        myQueue.put(ret)
-
-    def restart(self):
-        self.processes = []
-        self.queue = proc.Queue()
-
-    def run(self, func, *args, **kwargs):
-        args2 = [func, args, kwargs]
-        p = proc.Process(target=self._wrapper, args=args2)
-        self.processes.append(p)
-        p.start()
-
-    def wait(self):
-        for p in self.processes:
-            p.join()
-        rets = []
-        for p in self.processes:
-            ret = myQueue.get_nowait()
-
-            rets.append(ret)
-        for p in self.processes:
-            p.terminate()
-        return rets
-
 DATAFIELD_NAME = "sst4"
 #Set lon, lat, resolution
 Llon, Rlon = 110, 150
@@ -103,9 +66,7 @@ else :
     print ('*'*80)
     print (save_dir_name, 'is exist')
 
-myMP = Multiprocessor()
-
-years = range(2011, 2020)
+years = range(yr, yr+1)
 
 proc_dates = []
 
@@ -221,9 +182,9 @@ for batch in range(num_batches):
                         hdf_value = np.asarray(hdf_value)
                         #hdf_value[hdf_value < 0] = np.nan
                         
-                        print("latitude: {}".format(latitude))
-                        print("longitude: {}".format(longitude))
-                        print("hdf_value: {}".format(hdf_value))
+                        #print("latitude: {}".format(latitude))
+                        #print("longitude: {}".format(longitude))
+                        #print("hdf_value: {}".format(hdf_value))
                         print("np.shape(latitude): {}".format(np.shape(latitude)))
                         
                         print("np.shape(longitude): {}".format(np.shape(longitude)))
@@ -244,7 +205,8 @@ for batch in range(num_batches):
                                     longitude_value = np.linspace(longitude[row,i], longitude[row,i+1], cntl_pt_rows[i])
                                     for j in range(i) :
                                         longitude_new[row, row+j] = longitude_value[j]                        
-                            print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
+                            #print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
+                            longitude = longitude_new.copy()
                                                     
                         elif np.shape(longitude)[1] != np.shape(hdf_value)[1] :
                             print("np.shape(longitude)[1] != np.shape(hdf_value)[1] is true...")
@@ -261,11 +223,10 @@ for batch in range(num_batches):
                                     for j in range(len(longitude_value)-1) :
                                         longitude_new[row, cntl_pt_cols[i]-1+j] = longitude_value[j] 
                                     longitude_new[row, np.shape(longitude_new)[1]-1] = longitude[row, np.shape(longitude)[1]-1]
-                            print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
-                            
-                        longitude = longitude_new.copy()
+                            #print("np.shape(longitude_new): {}".format(np.shape(longitude_new)))
+                            longitude = longitude_new.copy()
                         longitude = np.asarray(longitude)
-                        print("type(longitude): {}".format(type(longitude)))
+                        #print("type(longitude): {}".format(type(longitude)))
                         print("np.shape(longitude): {}".format(np.shape(longitude)))
                         
                     
@@ -279,6 +240,7 @@ for batch in range(num_batches):
                                     for j in range(i) :
                                         latitude_new[row, row+j] = latitude_value[j]                        
                             print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
+                            latitude = latitude_new.copy()
                                                           
                         elif np.shape(latitude)[1] != np.shape(hdf_value)[1] :
                             print("np.shape(latitude)[1] != np.shape(hdf_value)[1] is true...")
@@ -296,10 +258,9 @@ for batch in range(num_batches):
                                         latitude_new[row, cntl_pt_cols[i]-1+j] = latitude_value[j] 
                                     latitude_new[row, np.shape(latitude_new)[1]-1] = latitude[row, np.shape(latitude)[1]-1]
                             print("np.shape(latitude_new): {}".format(np.shape(latitude_new)))
-                            
-                        latitude = latitude_new.copy()
+                            latitude = latitude_new.copy()
                         latitude = np.asarray(latitude)
-                        print("type(latitude): {}".format(type(latitude)))
+                        #print("type(latitude): {}".format(type(latitude)))
                         print("np.shape(latitude): {}".format(np.shape(latitude)))
                         
                                            
@@ -317,14 +278,14 @@ for batch in range(num_batches):
                         lon_cood = np.array(((longitude-Llon)/resolution*100)//100)
                         lat_cood = np.array(((Nlat-latitude)/resolution*100)//100)
                         
-                        print("longitude: {}".format(longitude))
+                        #print("longitude: {}".format(longitude))
                         print("np.shape(lon_cood): {}".format(np.shape(lon_cood)))
-                        print("lon_cood: {}".format(lon_cood))
+                        #print("lon_cood: {}".format(lon_cood))
                         
-                        print("latitude: {}".format(latitude))
+                        #print("latitude: {}".format(latitude))
                         print("np.shape(lat_cood): {}".format(np.shape(lat_cood)))
-                        print("lat_cood: {}".format(lat_cood))
-                        
+                        #print("lat_cood: {}".format(lat_cood))
+                        print("hdf_value: {}".format(hdf_value))
                         data_cnt = 0
                         NaN_cnt = 0
                         for i in range(np.shape(lon_cood)[0]) :
@@ -338,7 +299,7 @@ for batch in range(num_batches):
                                     
                                     #print("array_alldata[{}][{}].append({})"\
                                     #      .format(int(lon_cood[i][j]), int(lat_cood[i][j]), hdf_value[i][j]))
-                                    print("{} data added...".format(data_cnt))
+                                    #print("{} data added...".format(data_cnt))
                                
                         file_no += 1
                         total_data_cnt += data_cnt
@@ -348,7 +309,7 @@ for batch in range(num_batches):
                                     
                 processing_log += '#total data number =' + str(total_data_cnt) + '\n'
                 
-                print("array_alldata: {}".format(array_alldata))
+                #print("array_alldata: {}".format(array_alldata))
                 #print("prodessing_log: {}".format(processing_log))
                                             
                 np.save('{0}{1}_{2}_{3}_{4}_{5}_{6}_{7}_{8}_alldata.npy'\

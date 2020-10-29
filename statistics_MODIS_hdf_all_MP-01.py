@@ -42,11 +42,6 @@ if add_log == True :
     
 #for checking time
 cht_start_time = datetime.now()
-def print_working_time():
-    working_time = (datetime.now() - cht_start_time) #total days for downloading
-    return print('working time ::: %s' % (working_time))
-
-# Multiprocessing
 
 import multiprocessing as proc
 
