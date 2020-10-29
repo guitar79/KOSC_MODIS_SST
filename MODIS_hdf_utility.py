@@ -78,7 +78,27 @@ def npy_filename_to_fileinfo(fullname):
     Slat = fileinfo[-4]
     Nlat = fileinfo[-3]
     resolution = fileinfo[-2]
-    return start_date, end_date, int(Llon), int(Rlon), int(Slat), int(Nlat), float(resolution)
+    return start_date, end_date, Llon, Rlon, Slat, Nlat, resolution
+
+def getFullnameListOfallFiles(dirName):
+    ##############################################3
+    import os
+    # create a list of file and sub directories 
+    # names in the given directory 
+    listOfFile = sorted(os.listdir(dirName))
+    allFiles = list()
+    # Iterate over all the entries
+    for entry in listOfFile:
+        # Create full path
+        fullPath = os.path.join(dirName, entry)
+        # If entry is a directory then get the list of files in this directory 
+        if os.path.isdir(fullPath):
+            allFiles = allFiles + getFullnameListOfallFiles(fullPath)
+        else:
+            allFiles.append(fullPath)
+                
+    return allFiles
+
 
 def calculate_mean_using_result_array(result_array):
     mean_array = result_array.copy()
